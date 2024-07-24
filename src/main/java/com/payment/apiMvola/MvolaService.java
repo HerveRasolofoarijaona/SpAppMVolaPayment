@@ -1,20 +1,35 @@
 package com.payment.apiMvola;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.payment.model.Callback;
+import com.payment.model.MvolaTransactionRequest;
+import com.payment.model.Payment;
+
+
+import com.payment.repository.CallbackRepository;
+import com.payment.repository.PaymentRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.*;
 import org.json.JSONObject;
 
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 public class MvolaService {
+
+
+    private PaymentRepository paymentRepository;
+
+
+    private CallbackRepository callbackRepository;
 
     @Value("${mvola.auth.url}")
     private String authUrl;
@@ -38,7 +53,6 @@ public class MvolaService {
     private String NameEntreprise;
 
 
-
     public String authenticate() {
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
@@ -60,13 +74,18 @@ public class MvolaService {
 
         if (response.getStatusCode() == HttpStatus.OK) {
             JSONObject responseBody = new JSONObject(response.getBody());
+            System.out.println("Access token : "+responseBody.getString("access_token"));
             return responseBody.getString("access_token");
         } else {
             throw new RuntimeException("Failed to authenticate with Mvola API");
         }
     }
 
-    public String makePayment(String accessToken, String product, String clientMssidn, String refPaiement, String amount) {
+
+    public String makePayment(String accessToken, String product, String clientMssidn, String refPaiement, double amount) {
+
+        String callbackurlreceived = callbackurl + "/api/payment/callback/" + refPaiement;
+
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -74,53 +93,89 @@ public class MvolaService {
         headers.set("Version", "1.0");
         headers.set("X-CorrelationID", generateUUID());
         headers.set("UserLanguage", "MG");
-        headers.set("X-Callback-URL",callbackurl);
+        headers.set("X-Callback-URL", callbackurlreceived);
         headers.set("Accept-Charset", "utf-8");
 
         String timestamp = generateTimestamp();
 
-        // Construct the request body
-        JSONObject requestBody = new JSONObject();
-        requestBody.put("amount", amount);
-        requestBody.put("currency", "Ar");
-        requestBody.put("descriptionText", "Payment "+ product);
-        requestBody.put("requestingOrganisationTransactionReference", refPaiement);
-        requestBody.put("requestDate", timestamp);
-        requestBody.put("originalTransactionReference", refPaiement);
+        System.out.println("My DATETIME: " + timestamp);
 
-        JSONObject debitParty = new JSONObject();
-        debitParty.put("key", "msisdn");
-        debitParty.put("value", clientMssidn);
-        requestBody.append("debitParty", debitParty);
+        String descricptionProduct = "Payment of" + product;
 
-        JSONObject creditParty = new JSONObject();
-        creditParty.put("key", "msisdn");
-        creditParty.put("value", creditPartieMssidn);
-        requestBody.append("creditParty", creditParty);
+        List<MvolaTransactionRequest.Party> debitParty = new ArrayList<>();
+        MvolaTransactionRequest.Party party1 = new MvolaTransactionRequest.Party();
+        party1.setKey("msisdn");
+        party1.setValue(clientMssidn);
+        debitParty.add(party1);
 
-        JSONObject metadata1 = new JSONObject();
-        metadata1.put("key", "partnerName");
-        metadata1.put("value", NameEntreprise);
-        requestBody.append("metadata", metadata1);
+        List<MvolaTransactionRequest.Party> creditParty = new ArrayList<>();
+        MvolaTransactionRequest.Party party2 = new MvolaTransactionRequest.Party();
+        party2.setKey("msisdn");
+        party2.setValue(creditPartieMssidn);
+        creditParty.add(party2);
 
-        JSONObject metadata2 = new JSONObject();
-        metadata2.put("key", "fc");
-        metadata2.put("value", "USD");
-        requestBody.append("metadata", metadata2);
 
-        JSONObject metadata3 = new JSONObject();
-        metadata3.put("key", "amountFc");
-        metadata3.put("value", "1");
-        requestBody.append("metadata", metadata3);
+        MvolaTransactionRequest.Metadata metadata1 = new MvolaTransactionRequest.Metadata();
+        metadata1.setKey("partnerName");
+        metadata1.setValue(NameEntreprise); // Handle the single quote
 
-        HttpEntity<String> entity = new HttpEntity<>(requestBody.toString(), headers);
+        MvolaTransactionRequest.Metadata metadata2 = new MvolaTransactionRequest.Metadata();
+        metadata2.setKey("fc");
+        metadata2.setValue("USD");
 
-        ResponseEntity<String> response = restTemplate.postForEntity(transactionUrl, entity, String.class);
 
-        if (response.getStatusCode() == HttpStatus.OK) {
-            return response.getBody();
+        MvolaTransactionRequest.Metadata metadata3 = new MvolaTransactionRequest.Metadata();
+        metadata3.setKey("amountFc");
+        metadata3.setValue("1");
+
+        List<MvolaTransactionRequest.Metadata> metadataList = new ArrayList<>();
+        metadataList.add(metadata1);
+        metadataList.add(metadata2);
+        metadataList.add(metadata3);
+
+
+        MvolaTransactionRequest request = new MvolaTransactionRequest(amount,"Ar",descricptionProduct,refPaiement,timestamp,refPaiement,debitParty,creditParty,metadataList);
+
+        HttpEntity<String> entity = new HttpEntity<>(request.toJSON(), headers);
+
+        try {
+            System.out.println("Sending request to Mvola service: " + request.toJSON());
+            ResponseEntity<String> response = restTemplate.postForEntity(transactionUrl, entity, String.class);
+
+            Payment payment = new Payment();
+            payment.setAccessToken(accessToken);
+            payment.setProduct(product);
+            payment.setClientMssidn(clientMssidn);
+            payment.setRefPaiement(refPaiement);
+            payment.setAmount(String.valueOf(amount));
+            payment.setRequestDate(LocalDateTime.now());
+            payment.setCallbackReceived(false);
+            paymentRepository.save(payment);
+
+            if (response.getStatusCode() == HttpStatus.OK) {
+                return response.getBody();
+            } else {
+                throw new RuntimeException("Failed to make payment with Mvola API: " + response.getBody());
+            }
+        } catch (HttpClientErrorException e) {
+            System.err.println("Error response from Mvola service: " + e.getResponseBodyAsString());
+            throw new RuntimeException("Failed to make payment with Mvola API: " + e.getResponseBodyAsString(), e);
+        }
+    }
+
+    public void receiveCallback(String refPaiement, String callbackData) {
+        Optional<Payment> paymentOptional = paymentRepository.findByRefPaiement(refPaiement);
+        if (paymentOptional.isPresent()) {
+            Payment payment = paymentOptional.get();
+            payment.setCallbackReceived(true);
+            payment.setCallbackDate(LocalDateTime.now());
+            paymentRepository.save(payment);
+
+            // Save the callback data
+            Callback callback = new Callback(refPaiement, callbackData, LocalDateTime.now());
+            callbackRepository.save(callback);
         } else {
-            throw new RuntimeException("Failed to make payment with Mvola API");
+            throw new RuntimeException("Payment not found with ID: " + refPaiement);
         }
     }
 
@@ -133,5 +188,6 @@ public class MvolaService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
         return now.format(formatter);
     }
+
 
 }
