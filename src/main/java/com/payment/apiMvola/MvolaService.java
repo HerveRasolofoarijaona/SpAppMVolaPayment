@@ -8,6 +8,7 @@ import com.payment.model.Payment;
 
 import com.payment.repository.CallbackRepository;
 import com.payment.repository.PaymentRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
@@ -25,10 +26,9 @@ import java.util.*;
 @Service
 public class MvolaService {
 
-
+    @Autowired
     private PaymentRepository paymentRepository;
-
-
+    @Autowired
     private CallbackRepository callbackRepository;
 
     @Value("${mvola.auth.url}")
@@ -82,7 +82,7 @@ public class MvolaService {
     }
 
 
-    public String makePayment(String accessToken, String product, String clientMssidn, String refPaiement, double amount) {
+    public String makePayment(String accessToken, String product, String clientMssidn, String refPaiement, String amount) {
 
         String callbackurlreceived = callbackurl + "/api/payment/callback/" + refPaiement;
 
@@ -100,18 +100,18 @@ public class MvolaService {
 
         System.out.println("My DATETIME: " + timestamp);
 
-        String descricptionProduct = "Payment of" + product;
+        String descricptionProduct = "Payment of " + product;
 
         List<MvolaTransactionRequest.Party> debitParty = new ArrayList<>();
         MvolaTransactionRequest.Party party1 = new MvolaTransactionRequest.Party();
-        party1.setKey("msisdn");
         party1.setValue(clientMssidn);
+        party1.setKey("msisdn");
         debitParty.add(party1);
 
         List<MvolaTransactionRequest.Party> creditParty = new ArrayList<>();
         MvolaTransactionRequest.Party party2 = new MvolaTransactionRequest.Party();
-        party2.setKey("msisdn");
         party2.setValue(creditPartieMssidn);
+        party2.setKey("msisdn");
         creditParty.add(party2);
 
 
@@ -120,13 +120,15 @@ public class MvolaService {
         metadata1.setValue(NameEntreprise); // Handle the single quote
 
         MvolaTransactionRequest.Metadata metadata2 = new MvolaTransactionRequest.Metadata();
-        metadata2.setKey("fc");
         metadata2.setValue("USD");
+        metadata2.setKey("fc");
+
 
 
         MvolaTransactionRequest.Metadata metadata3 = new MvolaTransactionRequest.Metadata();
-        metadata3.setKey("amountFc");
         metadata3.setValue("1");
+        metadata3.setKey("amountFc");
+
 
         List<MvolaTransactionRequest.Metadata> metadataList = new ArrayList<>();
         metadataList.add(metadata1);

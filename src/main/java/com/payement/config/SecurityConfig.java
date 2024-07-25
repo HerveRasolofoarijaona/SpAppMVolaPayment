@@ -14,14 +14,15 @@ public class SecurityConfig {
 
 
     @Bean
-    @Autowired
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
+        http
                 .authorizeRequests()
                 .anyRequest()
                 .permitAll() // Allow all requests without authentication (for development)
                 .and()
                 .build();
+
+        return http.build();
     }
 
 

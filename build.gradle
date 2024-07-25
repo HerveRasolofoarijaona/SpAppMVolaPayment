@@ -25,7 +25,6 @@ dependencies {
 	implementation 'org.springframework.security:spring-security-config'
 	implementation 'org.json:json:20220320'
 	implementation group: 'org.postgresql', name: 'postgresql', version: '42.7.3'
-	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

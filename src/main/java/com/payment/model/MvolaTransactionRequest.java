@@ -9,7 +9,7 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class MvolaTransactionRequest {
 
-    private Double amount;
+    private String amount;
     private String currency;
     private String descriptionText;
     private String requestingOrganisationTransactionReference;
@@ -19,11 +19,11 @@ public class MvolaTransactionRequest {
     private List<Party> creditParty;
     private List<Metadata> metadata;
 
-    public Double getAmount() {
+    public String getAmount() {
         return amount;
     }
 
-    public void setAmount(Double amount) {
+    public void setAmount(String amount) {
         this.amount = amount;
     }
 
@@ -93,7 +93,7 @@ public class MvolaTransactionRequest {
 
     public MvolaTransactionRequest() {}
 
-    public MvolaTransactionRequest(Double amount, String currency, String descriptionText,
+    public MvolaTransactionRequest(String amount, String currency, String descriptionText,
                                    String requestingOrganisationTransactionReference, String requestDate,
                                    String originalTransactionReference, List<Party> debitParty,
                                    List<Party> creditParty, List<Metadata> metadata) {

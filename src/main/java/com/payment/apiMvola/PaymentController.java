@@ -19,7 +19,7 @@ public class PaymentController {
         String product = jsonObject.getString("product");
         String clientMssidn = jsonObject.getString("clientMssidn");
         String refPaiement = jsonObject.getString("refPaiement");
-        double amount = jsonObject.getDouble("amount");
+        String amount = jsonObject.getString("amount");
 
         System.out.println("I'm connecting with you !! SHIIT ");
         String accessToken = mvolaService.authenticate();
