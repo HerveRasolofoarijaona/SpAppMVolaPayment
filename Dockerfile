@@ -14,8 +14,10 @@ COPY gradle ./gradle
 # Fetch gradle dependencies before copying the entire project
 RUN ./gradlew dependencies --no-daemon
 
-# Copy the remaining project files
-COPY . .
+# Copy the remaining project files, rename application.properties.back4app
+COPY --from=none . .
+RUN mv src/main/resources/application.properties.back4app src/main/resources/application.properties
+
 
 # Build the application
 RUN ./gradlew build --no-daemon
