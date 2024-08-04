@@ -13,6 +13,7 @@ public class Callback {
     private Long id;
 
     private String paymentId;
+    @Column(columnDefinition = "TEXT")
     private String callbackData;
     private LocalDateTime receivedAt;
 

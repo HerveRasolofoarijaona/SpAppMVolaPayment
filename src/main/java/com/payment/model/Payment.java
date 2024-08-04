@@ -15,28 +15,39 @@ public class Payment {
     @Column(name = "id", unique = true)
     private Long id;
 
+    @Column(columnDefinition = "TEXT")
     private String accessToken;
+    @Column(columnDefinition = "TEXT")
     private String product;
+    @Column(columnDefinition = "TEXT")
     private String clientMssidn;
+    @Column(columnDefinition = "TEXT")
     private String refPaiement;
+    @Column(columnDefinition = "TEXT")
     private String amount;
+    @Column(columnDefinition = "TEXT")
+    private String correlationID;
+
     private LocalDateTime requestDate;
     private Boolean callbackReceived;
     private LocalDateTime callbackDate;
 
     public Payment() {
+
     }
 
-    public Payment(Long id, String accessToken, String product, String clientMssidn, String refPaiement, String amount, LocalDateTime requestDate, Boolean callbackReceived, LocalDateTime callbackDate) {
+    public Payment(Long id, String accessToken, String product, String clientMssidn, String refPaiement, String amount, String correlationID, LocalDateTime requestDate, Boolean callbackReceived, LocalDateTime callbackDate) {
         this.id = id;
         this.accessToken = accessToken;
         this.product = product;
         this.clientMssidn = clientMssidn;
         this.refPaiement = refPaiement;
         this.amount = amount;
+        this.correlationID = correlationID;
         this.requestDate = requestDate;
         this.callbackReceived = callbackReceived;
         this.callbackDate = callbackDate;
+
     }
 
 
@@ -112,6 +123,13 @@ public class Payment {
 
     public void setCallbackDate(LocalDateTime callbackDate) {
         this.callbackDate = callbackDate;
+    }
+    public String getCorrelationID() {
+        return correlationID;
+    }
+
+    public void setCorrelationID(String correlationID) {
+        this.correlationID = correlationID;
     }
 
     // Getters and Setters

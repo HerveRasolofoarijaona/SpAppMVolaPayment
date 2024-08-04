@@ -1,6 +1,6 @@
 package com.payment.apiMvola;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.payment.model.Callback;
 import com.payment.model.MvolaTransactionRequest;
 import com.payment.model.Payment;
@@ -84,14 +84,15 @@ public class MvolaService {
 
     public String makePayment(String accessToken, String product, String clientMssidn, String refPaiement, String amount) {
 
-        String callbackurlreceived = callbackurl + "/api/payment/callback/" + refPaiement;
+        String correlationID = generateUUID();
+        String callbackurlreceived = callbackurl + "/api/payment/callback/" + correlationID;
 
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(accessToken);
         headers.set("Version", "1.0");
-        headers.set("X-CorrelationID", generateUUID());
+        headers.set("X-CorrelationID",correlationID);
         headers.set("UserLanguage", "MG");
         headers.set("X-Callback-URL", callbackurlreceived);
         headers.set("Accept-Charset", "utf-8");
@@ -152,10 +153,14 @@ public class MvolaService {
             payment.setAmount(String.valueOf(amount));
             payment.setRequestDate(LocalDateTime.now());
             payment.setCallbackReceived(false);
+            payment.setCorrelationID(correlationID);
             paymentRepository.save(payment);
 
-            if (response.getStatusCode() == HttpStatus.OK) {
-                return response.getBody();
+            System.out.println(response.getStatusCode());
+
+            if (response.getStatusCode() == HttpStatus.ACCEPTED) {
+                String responseBody = response.getBody();
+                return stringToJson(responseBody);
             } else {
                 throw new RuntimeException("Failed to make payment with Mvola API: " + response.getBody());
             }
@@ -165,19 +170,23 @@ public class MvolaService {
         }
     }
 
-    public void receiveCallback(String refPaiement, String callbackData) {
-        Optional<Payment> paymentOptional = paymentRepository.findByRefPaiement(refPaiement);
+    public void receiveCallback(String correlationID, String callbackData) {
+        Optional<Payment> paymentOptional = paymentRepository.findByCorrelationID(correlationID);
         if (paymentOptional.isPresent()) {
             Payment payment = paymentOptional.get();
             payment.setCallbackReceived(true);
             payment.setCallbackDate(LocalDateTime.now());
             paymentRepository.save(payment);
 
+            String refPaiement = payment.getRefPaiement();
+
+            System.out.println(refPaiement);
+
             // Save the callback data
             Callback callback = new Callback(refPaiement, callbackData, LocalDateTime.now());
             callbackRepository.save(callback);
         } else {
-            throw new RuntimeException("Payment not found with ID: " + refPaiement);
+            throw new RuntimeException("Payment not found with ID: " + correlationID);
         }
     }
 
@@ -191,5 +200,13 @@ public class MvolaService {
         return now.format(formatter);
     }
 
-
+    public static String stringToJson(String jsonString) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return String.valueOf(objectMapper.readTree(jsonString));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 }
