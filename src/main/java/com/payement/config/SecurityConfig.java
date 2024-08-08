@@ -12,19 +12,13 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class SecurityConfig {
 
-
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .authorizeRequests()
-                .anyRequest()
-                .permitAll() // Allow all requests without authentication (for development)
-                .and()
-                .build();
-
+                .authorizeHttpRequests(authorizeRequests ->
+                        authorizeRequests.anyRequest().permitAll() // Allow all requests without authentication (for development)
+                );
         return http.build();
     }
-
-
 }
 
