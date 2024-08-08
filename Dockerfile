@@ -1,5 +1,5 @@
-# Start with a base image containing Java runtime
-FROM openjdk:17-jdk-alpine
+# Start with a base image containing Gradle and Java 21
+FROM gradle:8.8-jdk21
 
 # Set the working directory
 WORKDIR /app
@@ -11,19 +11,21 @@ COPY build.gradle settings.gradle ./
 COPY gradlew ./
 COPY gradle ./gradle
 
-# Fetch gradle dependencies before copying the entire project
-RUN ./gradlew dependencies --no-daemon
-
-# Copy the remaining project files, rename application.properties.back4app
-COPY --from=none . .
+# Copy the remaining project files,
+COPY . .
 RUN mv src/main/resources/application.properties.back4app src/main/resources/application.properties
 
+# Give executable permission to the gradlew file
+RUN chmod +x gradlew
+
+# Fetch gradle dependencies before copying the entire project
+RUN gradle dependencies
 
 # Build the application
-RUN ./gradlew build --no-daemon
+RUN gradle build --no-daemon
 
 # Expose the application port (adjust as needed)
 EXPOSE 8080
 
 # Run the application
-CMD ["java", "-jar", "build/libs/your-application.jar"]
+CMD ["java", "-jar", "build/libs/apiMvola-0.0.1-SNAPSHOT.jar"]
